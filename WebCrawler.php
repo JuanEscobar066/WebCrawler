@@ -9,6 +9,7 @@ class WebCrawler{
     private $max_depth;     // Max number of pages that can be visited.
     private $current_depth; // Number of pages already visited.
     private $all_links;     // Links extracted from every page visited.
+    private $visited_links; // All the already visited links.
     
     // Constructor.
     public function __construct($main_url, $txt_file, $max_depth){
@@ -18,6 +19,8 @@ class WebCrawler{
         $this->max_depth = $max_depth;
         $this->current_depth = 0;
         $this->all_links = array();
+        $this->visited_links = array();     
+        set_time_limit(2000);
     }
     
     // Writes the page contents into a txt file.
@@ -28,49 +31,75 @@ class WebCrawler{
         fclose($openFile);
     }
         
-    // Gets the page contents and saves them into the txt file.
-    // PONER STATIC PARA RECURSIVIDAD
-    public function getContents(){
+    // Gets the page contents and saves them into the txt file.    
+    public function getContents(){        
         // If the limit is reached.
         if($this->current_depth == $this->max_depth){
-            $this->current_depth = 0;            
-            return;
+            $this->current_depth = 0;                        
+            print_r($this->visited_links);
         }
-        else{
+        else{            
             // Gets the page contents and saves them like a string.
-            $html = file_get_contents($this->current_url); 
+            $html = @file_get_contents($this->current_url); 
             $doc = new DOMDocument(); 
             @$doc->loadHTML($html);
             $xpath = new DOMXpath($doc);
 
-            // Gets the contents from the div tags.
-            $items = $xpath->query("//div");
+            array_push($this->visited_links, $this->current_url); // Saves the current link as visited in the array.            
+            $items = $xpath->query("//div");                      // Gets the contents from the div tags.                                    
 
             // Gets the page title and writes it in the txt file.
             $page_title = $this->getPageTitle();
-            $this->writeFile($page_title . PHP_EOL);
-
-            // Gets the value of each DOMDocumentNode and joins it to $pageContents.                        
-            for($i = 0; $i < 5; $i++){
-                $this->writeFile($items[$i]->nodeValue . PHP_EOL);
-                echo $items[$i]->nodeValue, PHP_EOL;        
-            }
             
-            // choose current_url randomly
-                          
-            $this->current_depth++;            
-            $this->getContents();
+            // Verifies if the title could be obtained.
+            if($page_title !== false){                            
+                $this->writeFile("$--inicio--$");               // Separator.
+                $this->writeFile($this->current_depth . " " . $page_title);                  // Writes the title in the txt file.
+                $this->writeFile($this->current_url . PHP_EOL); // Gets the link of the current page and writes it in the txt file.
+
+                echo "$--inicio--$" . "<br>";       
+                echo $this->current_depth . " " . $page_title . "<br>";
+                echo $this->current_url . "<br>";       
+
+                // Gets the value of each DOMDocumentNode and writes it in the txt file.                        
+                for($i = 0; $i < 5; $i++){         
+                    // If it's a valid node.
+                    if(isset($items[$i])){
+                         $this->writeFile($items[$i]->nodeValue . PHP_EOL);    
+                    }                                    
+                }                                                
+                $this->current_depth++; // Increments the depth. 
+            }            
+            $this->getLinks();                           // Gets the links included in the current page.            
+            $this->current_url = $this->getRandomLink(); // Gets a random link.              
+            return $this->getContents();                         
         }        
     }        
     
+    // Gets a random link from the extracted links.
+    public function getRandomLink(){
+        // Randomly, chooses a new url.        
+        $randomIndex = rand(0, count($this->all_links) - 1);
+        $randomLink = $this->all_links[$randomIndex];    
+        
+        // If the random link chosen has not been visited yet.
+        if(in_array($randomLink, $this->visited_links) == false){
+            /*echo 'shrandom: ' . $randomLink;*/
+            return $randomLink;
+        }
+        else{
+            return $this->getRandomLink();
+        }
+    }
+    
     // Gets the links from the current page and saves them into an array.
     public function getLinks(){
-        $html = file_get_contents($this->current_url); 
+        $html = @file_get_contents($this->current_url); 
         preg_match_all('/<a href="(.*?)"/', $html, $matches); // Inserts all the found links into an array.                
         
         // Appends every found link to the array "all_links".
         foreach($matches[1] as $m){
-            $is_link = strpos($m, "http"); // To verify if it's already a valid link (http in it).
+            $is_link = strpos($m, 'http') or strpos($m, 'www'); // To verify if it's already a valid link (http or www in it).
             
             // If it's not a valid link, it adds the main url before the link.
             if($is_link === false){
@@ -87,13 +116,17 @@ class WebCrawler{
     
     // Gets the title from the current page.
     public function getPageTitle(){
-        $html = file_get_contents($this->current_url);
+        $html = @file_get_contents($this->current_url);
         preg_match('/<title>(.*)<\/title/i', $html, $title);
-        $title_out = $title[1];
-        return $title_out;
+        
+        // If the title could be obtained.
+        if(isset($title[1])){            
+            return $title[1];
+        }
+        return false;        
     }
 }
 
-$crawler = new WebCrawler("https://en.wikipedia.org", "PagesContents.txt", 1);
+$crawler = new WebCrawler("https://en.wikipedia.org", "PagesContents.txt", 500);
 $crawler->getContents();
-$crawler->getLinks();    
+
