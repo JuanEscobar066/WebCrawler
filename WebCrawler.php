@@ -53,11 +53,11 @@ class WebCrawler{
             
             // Verifies if the title could be obtained.
             if($page_title !== false){                            
-                $this->writeFile("$--inicio--$");               // Separator.
+                $this->writeFile("$--beginning--$");               // Separator.
                 $this->writeFile($this->current_depth . " " . $page_title);                  // Writes the title in the txt file.
                 $this->writeFile($this->current_url . PHP_EOL); // Gets the link of the current page and writes it in the txt file.
 
-                echo "$--inicio--$" . "<br>";       
+                echo "$--beginning--$" . "<br>";       
                 echo $this->current_depth . " " . $page_title . "<br>";
                 echo $this->current_url . "<br>";       
 
